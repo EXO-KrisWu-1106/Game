@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102b45">
+  <title>声波冲浪 · WAVE RIDER</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #102b45;
+      --paper: #f9f2dc;
+      --coral: #ff795f;
+      --mint: #8ee7c2;
+      --sky: #73c9d4;
+      --line: rgba(249, 242, 220, .17);
+      font-family: "Courier New", "Noto Sans Mono CJK SC", monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--paper);
+      background-color: var(--ink);
+      background-image:
+        radial-gradient(ellipse at 50% -24%, rgba(80, 147, 157, .32), transparent 56%),
+        linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+      background-size: auto, 24px 24px, 24px 24px;
+      display: grid;
+      place-items: center;
+      padding: 30px 18px;
+    }
+
+    button { font: inherit; }
+
+    .arcade {
+      width: min(100%, 960px);
+      border: 1px solid rgba(249,242,220,.24);
+      background: rgba(13, 35, 55, .92);
+      box-shadow: 0 0 0 5px rgba(13,35,55,.45), 0 26px 80px #07152299;
+    }
+
+    .topbar, .bottom-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 15px 20px;
+    }
+
+    .topbar { border-bottom: 1px solid var(--line); }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 34px; height: 34px; display: grid; place-items: center;
+      color: var(--ink); background: var(--mint); font-weight: 900;
+      box-shadow: 4px 4px 0 #4ca88e;
+    }
+    .brand-name { font-size: 14px; font-weight: 900; letter-spacing: .15em; }
+    .brand-sub { margin-top: 3px; color: #94b4c0; font-size: 9px; letter-spacing: .18em; }
+    .live-tag { color: var(--mint); font-size: 10px; letter-spacing: .12em; }
+    .live-dot {
+      display: inline-block; width: 7px; height: 7px; margin-right: 7px;
+      background: currentColor; box-shadow: 0 0 9px currentColor;
+      animation: blink 1.2s steps(2, start) infinite;
+    }
+    @keyframes blink { to { opacity: .3; } }
+
+    .stage-wrap { position: relative; background: #75cada; }
+    #game {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      touch-action: none;
+    }
+
+    .hud {
+      position: absolute; inset: 13px 15px auto;
+      display: grid; grid-template-columns: 1fr auto 1fr; align-items: start;
+      gap: 8px; pointer-events: none; text-shadow: 2px 2px 0 #18374d;
+    }
+    .hud-cell { font-size: 9px; letter-spacing: .12em; color: #e6f5e8; }
+    .hud-cell.center { text-align: center; }
+    .hud-cell.right { text-align: right; }
+    .hud-value { display: block; margin-top: 4px; font-size: 17px; font-weight: 900; color: white; }
+    .hud-value small { font-size: 9px; color: #d3f1e8; }
+    .mode-pill {
+      display: inline-block; padding: 5px 8px; color: #103146;
+      background: var(--mint); font-weight: 900; font-size: 9px;
+      letter-spacing: .08em; box-shadow: 2px 2px 0 #276f75;
+    }
+    .mode-pill.stealth { background: #f9d56e; }
+    .mode-pill.danger { background: var(--coral); animation: blink .3s steps(2,start) infinite; }
+    .progress-track {
+      position: absolute; left: 15px; right: 15px; bottom: 11px;
+      height: 5px; background: #15395080; border: 1px solid #d5fff277;
+      pointer-events: none;
+    }
+    .progress-fill { height: 100%; width: 0; background: var(--mint); transition: width .1s linear; }
+    .sound-meter {
+      position: absolute; right: 16px; bottom: 24px; display: flex;
+      align-items: end; gap: 3px; height: 18px; pointer-events: none;
+    }
+    .sound-meter i { width: 4px; height: 5px; background: #e9f4df; opacity: .7; }
+    .sound-meter i:nth-child(2), .sound-meter i:nth-child(5) { height: 9px; }
+    .sound-meter i:nth-child(3), .sound-meter i:nth-child(4) { height: 14px; }
+    .sound-meter.active i { background: #ffed8b; box-shadow: 0 0 7px #ffed8b; }
+
+    .overlay {
+      position: absolute; inset: 0; display: grid; place-items: center;
+      padding: 24px; background: linear-gradient(180deg, #153a4b48, #102b45a6);
+    }
+    .overlay[hidden] { display: none; }
+    .dialog {
+      width: min(100%, 430px); padding: 22px 24px 20px; text-align: center;
+      color: var(--ink); background: var(--paper);
+      border: 4px solid #18364a; box-shadow: 7px 7px 0 #18364a;
+    }
+    .eyebrow { color: #398b85; font-weight: 900; font-size: 10px; letter-spacing: .22em; }
+    .dialog h1 { margin: 9px 0 4px; font-size: clamp(25px, 5vw, 39px); line-height: 1; letter-spacing: -.07em; }
+    .dialog p { margin: 9px auto 15px; max-width: 340px; color: #456172; font: 12px/1.65 "Courier New", monospace; }
+    .start-btn {
+      min-height: 44px; padding: 0 18px; border: 0; color: var(--paper);
+      background: #f06e58; box-shadow: 4px 4px 0 #a8423f;
+      font-weight: 900; font-size: 12px; letter-spacing: .1em; cursor: pointer;
+      transition: transform .12s, box-shadow .12s;
+    }
+    .start-btn:hover { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #a8423f; }
+    .start-btn:focus-visible, .mic-btn:focus-visible { outline: 3px solid #f5cb60; outline-offset: 4px; }
+    .start-btn:disabled { opacity: .7; cursor: wait; }
+    .key-hint { margin-top: 12px; color: #718590; font-size: 9px; }
+
+    .bottom-bar { min-height: 64px; border-top: 1px solid var(--line); }
+    .instructions { display: flex; flex-wrap: wrap; gap: 8px 18px; color: #9db7c0; font-size: 10px; line-height: 1.6; }
+    .instructions strong { color: var(--paper); }
+    kbd {
+      padding: 2px 5px; border: 1px solid #66808b; border-bottom-width: 2px;
+      color: var(--paper); font: inherit;
+    }
+    .mic-btn {
+      flex: 0 0 auto; padding: 8px 10px; color: var(--mint);
+      border: 1px solid #579784; background: transparent; font-size: 9px;
+      font-weight: bold; letter-spacing: .05em; cursor: pointer;
+    }
+    .mic-btn:hover { background: #8ee7c21a; }
+    .mic-btn[aria-pressed="true"] { color: var(--ink); background: var(--mint); }
+    .notice { position: fixed; bottom: 12px; left: 12px; color: #aec6cb; font-size: 9px; opacity: .8; }
+
+    @media (max-width: 560px) {
+      body { padding: 12px 8px; }
+      .topbar, .bottom-bar { padding: 11px 12px; }
+      .topbar { align-items: flex-start; }
+      .brand-name { font-size: 11px; }
+      .live-tag { font-size: 8px; }
+      .instructions { font-size: 9px; gap: 5px 10px; }
+      .bottom-bar { align-items: flex-end; }
+      .dialog { padding: 17px 14px; }
+      .hud { inset: 9px 9px auto; }
+      .hud-cell { font-size: 7px; }
+      .hud-value { font-size: 13px; }
+      .mode-pill { font-size: 7px; padding: 4px 5px; }
+      .progress-track { left: 9px; right: 9px; bottom: 7px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="arcade" aria-label="声波冲浪游戏">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">〰</div>
+        <div>
+          <div class="brand-name">声波冲浪</div>
+          <div class="brand-sub">WAVE RIDER · SOUND ARCADE</div>
+        </div>
+      </div>
+      <div class="live-tag"><span class="live-dot"></span>海岸电台 · LIVE</div>
+    </header>
+
+    <section class="stage-wrap" aria-label="游戏画面">
+      <canvas id="game" width="480" height="270" aria-label="像素风冲浪游戏画面"></canvas>
+      <div class="hud" aria-live="polite">
+        <div class="hud-cell">距离<span class="hud-value"><span id="distance">000</span><small> M</small></span></div>
+        <div class="hud-cell center"><span id="mode" class="mode-pill">准备出发</span></div>
+        <div class="hud-cell right">剩余时间<span class="hud-value"><span id="timer">60</span><small> SEC</small></span></div>
+      </div>
+      <div class="sound-meter" id="sound-meter" aria-label="麦克风音量指示"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="progress-track" aria-hidden="true"><div class="progress-fill" id="progress"></div></div>
+
+      <div class="overlay" id="overlay">
+        <div class="dialog">
+          <div class="eyebrow" id="dialog-eyebrow">一场 60 秒的海上冒险</div>
+          <h1 id="dialog-title">准备好乘风破浪？</h1>
+          <p id="dialog-copy">对着麦克风吹气或发声，让气流把冲浪板托起来，越过迎面而来的浪头。安静潜行区里，记得收声！</p>
+          <button class="start-btn" id="start">开始冲浪　▶</button>
+          <div class="key-hint" id="key-hint">空格 / 按住画面也能制造气流，无需麦克风</div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="bottom-bar">
+      <div class="instructions">
+        <span><strong>发声 / 吹气</strong>　板子升高</span>
+        <span><strong><kbd>空格</kbd> 按住</strong>　键盘助推</span>
+        <span><strong>潜行区</strong>　保持安静</span>
+      </div>
+      <button class="mic-btn" id="mic-button" aria-pressed="false" title="连接麦克风">◉　连接麦克风</button>
+    </footer>
+  </main>
+  <div class="notice">音频仅在本机处理 · 不录音、不上传</div>
+
+  <script>
+    (() => {
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      const overlay = document.getElementById("overlay");
+      const startButton = document.getElementById("start");
+      const micButton = document.getElementById("mic-button");
+      const modeLabel = document.getElementById("mode");
+      const meter = document.getElementById("sound-meter");
+      const distanceLabel = document.getElementById("distance");
+      const timerLabel = document.getElementById("timer");
+      const progress = document.getElementById("progress");
+      const W = canvas.width, H = canvas.height;
+
+      let audioContext, analyser, audioStream, audioData;
+      let state = "ready";
+      let startedAt = 0, lastFrame = 0, elapsed = 0;
+      let distance = 0, score = 0, altitude = 0, verticalSpeed = 0;
+      let volume = 0, alarm = 0, thrustHeld = false, stealth = false;
+      let waves = [], particles = [], nextWave = 530, seaTime = 0, shake = 0;
+      let best = Number(localStorage.getItem("wave-rider-best") || 0);
+
+      const rand = (min, max) => min + Math.random() * (max - min);
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const pixel = (x, y, w, h, color) => { ctx.fillStyle = color; ctx.fillRect(Math.round(x), Math.round(y), w, h); };
+
+      function connectMic() {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          showNotice("当前浏览器不支持麦克风，请用空格键操作。");
+          return Promise.resolve(false);
+        }
+        if (analyser) return Promise.resolve(true);
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) {
+          showNotice("当前浏览器不支持音频分析，请用空格键操作。");
+          return Promise.resolve(false);
+        }
+        audioContext = new AudioContextClass();
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 512;
+        analyser.smoothingTimeConstant = .22;
+        audioData = new Uint8Array(analyser.fftSize);
+        const permission = navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } });
+        return Promise.all([permission, audioContext.resume()])
+          .then(([stream]) => {
+            audioStream = stream;
+            audioContext.createMediaStreamSource(stream).connect(analyser);
+            micButton.textContent = "◉　麦克风已连接";
+            micButton.setAttribute("aria-pressed", "true");
+            return true;
+          })
+          .catch(() => {
+            analyser = audioData = null;
+            if (audioContext?.state !== "closed") audioContext?.close();
+            audioContext = null;
+            showNotice("无法连接麦克风，仍可按住空格或画面操作。");
+            return false;
+          });
+      }
+
+      function showNotice(message) {
+        const notice = document.querySelector(".notice");
+        notice.textContent = message;
+        window.setTimeout(() => { notice.textContent = "音频仅在本机处理 · 不录音、不上传"; }, 3800);
+      }
+
+      function readVolume() {
+        if (!analyser) return 0;
+        analyser.getByteTimeDomainData(audioData);
+        let sum = 0;
+        for (let i = 0; i < audioData.length; i++) {
+          const sample = (audioData[i] - 128) / 128;
+          sum += sample * sample;
+        }
+        return Math.sqrt(sum / audioData.length);
+      }
+
+      function beginGame() {
+        state = "playing";
+        startedAt = performance.now();
+        lastFrame = startedAt;
+        elapsed = distance = score = altitude = verticalSpeed = alarm = 0;
+        waves = [];
+        particles = [];
+        nextWave = 530;
+        overlay.hidden = true;
+        startButton.disabled = false;
+        modeLabel.textContent = "顺风起航";
+        modeLabel.className = "mode-pill";
+      }
+
+      function endGame(won, reason) {
+        if (state !== "playing") return;
+        state = won ? "won" : "over";
+        best = Math.max(best, score);
+        localStorage.setItem("wave-rider-best", String(best));
+        document.getElementById("dialog-eyebrow").textContent = won ? "完美冲线 · THE COAST IS YOURS" : "本次航行结束 · TRY AGAIN";
+        document.getElementById("dialog-title").textContent = won ? "你征服了整片海！" : reason;
+        document.getElementById("dialog-copy").textContent = `越过 ${score} 道浪 · 冲浪 ${Math.floor(distance)} 米 · 最佳纪录 ${best} 道浪。`;
+        startButton.textContent = "再冲一趟　↻";
+        document.getElementById("key-hint").textContent = "每一趟海浪都不一样，准备好再出发。";
+        overlay.hidden = false;
+      }
+
+      function activeStealth(time) {
+        const phase = time % 24;
+        return phase >= 15 && phase < 22;
+      }
+
+      function update(dt, now) {
+        if (state !== "playing") return;
+        elapsed = (now - startedAt) / 1000;
+        if (elapsed >= 60) { endGame(true); return; }
+        distance += dt * 12;
+        seaTime += dt;
+        stealth = activeStealth(elapsed);
+        const rawVolume = readVolume();
+        const keyboard = thrustHeld ? .72 : 0;
+        volume = Math.max(keyboard, clamp((rawVolume - .018) / .16, 0, 1));
+        const loud = volume > .28;
+
+        if (stealth) {
+          alarm = loud ? alarm + dt * (volume > .6 ? 1.45 : .85) : Math.max(0, alarm - dt * .9);
+          modeLabel.textContent = alarm > .65 ? "警报快响了！" : "安静潜行";
+          modeLabel.className = alarm > .65 ? "mode-pill danger" : "mode-pill stealth";
+          if (alarm >= 1.5) { endGame(false, "嘘——被发现了！"); return; }
+        } else {
+          alarm = Math.max(0, alarm - dt * 2);
+          modeLabel.textContent = "发声，飞起来！";
+          modeLabel.className = "mode-pill";
+          verticalSpeed += (volume * 620 - 370) * dt;
+          verticalSpeed = clamp(verticalSpeed, -260, 300);
+          altitude = clamp(altitude + verticalSpeed * dt, 0, 108);
+          if (altitude === 0 && verticalSpeed < 0) verticalSpeed = 0;
+        }
+
+        const speed = 118 + Math.min(42, elapsed * .55);
+        if (!stealth && nextWave < distance * 3 + 580) {
+          waves.push({ x: nextWave - distance * 3, width: rand(43, 61), height: rand(34, 55), passed: false, color: Math.random() > .5 ? "#f47861" : "#efaa61" });
+          nextWave += rand(188, 245);
+        }
+        waves.forEach(wave => {
+          wave.x -= speed * dt;
+          if (!wave.passed && wave.x + wave.width < 116) {
+            wave.passed = true;
+            if (altitude < wave.height + 5) {
+              splash();
+              endGame(false, "浪头把你拍下水了！");
+            } else {
+              score++;
+              burst(119, 174 - altitude, "#ffe183", 7);
+            }
+          }
+        });
+        waves = waves.filter(wave => wave.x > -80);
+        particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 110 * dt; p.life -= dt; });
+        particles = particles.filter(p => p.life > 0);
+        shake = Math.max(0, shake - dt * 16);
+        if (altitude === 0 && loud) makeTrail();
+        distanceLabel.textContent = String(Math.floor(distance)).padStart(3, "0");
+        timerLabel.textContent = String(Math.ceil(60 - elapsed));
+        progress.style.width = `${Math.min(100, elapsed / 60 * 100)}%`;
+        meter.classList.toggle("active", volume > .12);
+        for (const [index, bar] of [...meter.children].entries()) {
+          bar.style.transform = `scaleY(${Math.max(.35, volume * (2.1 + (index % 3) * .4))})`;
+        }
+      }
+
+      function splash() {
+        shake = 5;
+        burst(121, 183, "#d6fff0", 15);
+      }
+
+      function burst(x, y, color, count) {
+        for (let i = 0; i < count; i++) {
+          particles.push({ x, y, vx: rand(-48, 48), vy: rand(-72, 10), life: rand(.3, .8), color, size: Math.random() > .5 ? 3 : 2 });
+        }
+      }
+
+      function makeTrail() {
+        if (Math.random() < .45) particles.push({ x: 111 + rand(-4, 4), y: 189, vx: rand(-30, -8), vy: rand(-34, -7), life: .35, color: "#e9fff0", size: 2 });
+      }
+
+      function drawBackground() {
+        const sky = ctx.createLinearGradient(0, 0, 0, 205);
+        sky.addColorStop(0, stealth ? "#172e54" : "#76cbd1");
+        sky.addColorStop(1, stealth ? "#63869e" : "#f6c58d");
+        ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+        pixel(0, 0, W, 2, stealth ? "#c5d9bf" : "#fff1c9");
+        const sunX = 375, sunY = 72;
+        pixel(sunX - 17, sunY - 17, 34, 34, stealth ? "#e8f1ce" : "#ffed9a");
+        pixel(sunX - 23, sunY - 9, 6, 18, stealth ? "#e8f1ce" : "#ffed9a");
+        pixel(sunX + 17, sunY - 9, 6, 18, stealth ? "#e8f1ce" : "#ffed9a");
+        pixel(sunX - 9, sunY - 23, 18, 6, stealth ? "#e8f1ce" : "#ffed9a");
+        pixel(sunX - 9, sunY + 17, 18, 6, stealth ? "#e8f1ce" : "#ffed9a");
+        const cloudOffset = (seaTime * 7) % 550;
+        drawCloud(55 - cloudOffset, 51, "#e8f7e3");
+        drawCloud(287 - (cloudOffset * .55), 103, "#d3ece0");
+        drawHill(0, 160, 90, "#57999a");
+        drawHill(130, 166, 72, "#72b2a0");
+        drawHill(300, 162, 102, "#4d9190");
+        drawPalm(420, 145);
+        pixel(0, 175, W, 5, stealth ? "#386f82" : "#438d91");
+      }
+
+      function drawCloud(x, y, color) {
+        const px = (seaTime * 9) % 560;
+        x = (x + px + 560) % 560 - 40;
+        pixel(x + 8, y, 20, 5, color); pixel(x, y + 5, 35, 7, color); pixel(x + 5, y + 12, 25, 3, color);
+      }
+
+      function drawHill(x, y, width, color) {
+        pixel(x, y + 8, width, 38, color);
+        for (let row = 0; row < 6; row++) pixel(x + row * 7, y + row * 4, width - row * 14, 5, color);
+      }
+
+      function drawPalm(x, y) {
+        pixel(x + 7, y, 4, 29, "#795943");
+        pixel(x + 2, y - 3, 15, 4, "#387d6b"); pixel(x - 4, y + 1, 14, 4, "#387d6b");
+        pixel(x + 8, y - 9, 13, 4, "#387d6b"); pixel(x + 11, y - 4, 14, 4, "#387d6b");
+      }
+
+      function drawSea() {
+        const base = stealth ? "#164863" : "#176d83";
+        pixel(0, 180, W, 90, base);
+        for (let y = 183; y < H; y += 12) {
+          const shift = (seaTime * (26 + (y - 180) * .12)) % 65;
+          for (let x = -65 + shift; x < W; x += 65) {
+            pixel(x, y, 24, 2, stealth ? "#47839a" : "#48a6a3");
+            pixel(x + 31, y + 5, 13, 2, stealth ? "#245d78" : "#2a8997");
+          }
+        }
+        pixel(0, 180, W, 2, "#d2f1ce");
+        for (const wave of waves) drawWave(wave);
+        const foam = Math.sin(seaTime * 2.3) * 2;
+        pixel(0, 180 + foam, 61, 2, "#b2e7ce"); pixel(185, 180 - foam, 48, 2, "#b2e7ce");
+      }
+
+      function drawWave(wave) {
+        const x = Math.round(wave.x), crest = 181 - wave.height;
+        pixel(x + 10, crest, wave.width - 10, wave.height + 16, "#187487");
+        pixel(x + 5, crest + 6, wave.width - 15, wave.height + 10, "#168398");
+        pixel(x, crest + 14, wave.width - 20, wave.height, "#239ba4");
+        pixel(x + 9, crest + 7, 18, 4, "#d5f3cf");
+        pixel(x + 25, crest + 3, 14, 4, "#d5f3cf");
+        pixel(x + 31, crest + 13, 19, 3, wave.color);
+        pixel(x + 38, crest + 18, 12, 3, "#ffba79");
+      }
+
+      function drawSurfer(now) {
+        const bob = Math.sin(now / 155) * 1.5;
+        const bx = 101, by = 177 - altitude + bob;
+        if (volume > .1 && !stealth) {
+          for (let i = 0; i < 3; i++) pixel(110 + i * 5, by + 14 + i * 3, 4, 3, i === 1 ? "#fff1aa" : "#a7f5d7");
+        }
+        pixel(bx - 5, by + 10, 39, 4, "#18394f");
+        pixel(bx, by + 7, 28, 3, "#f37c61");
+        pixel(bx + 5, by + 5, 17, 2, "#ffd98c");
+        pixel(bx + 12, by - 17, 11, 12, "#d85d50");
+        pixel(bx + 12, by - 19, 11, 7, "#ffd79b");
+        pixel(bx + 14, by - 26, 9, 8, "#ea9c62");
+        pixel(bx + 13, by - 29, 11, 4, "#262f48");
+        pixel(bx + 11, by - 25, 4, 5, "#262f48");
+        pixel(bx + 18, by - 22, 2, 2, "#17384a");
+        pixel(bx + 5, by - 14, 9, 3, "#ea9c62");
+        pixel(bx + 2, by - 12, 4, 8, "#ea9c62");
+        pixel(bx + 20, by - 15, 8, 3, "#ea9c62");
+        pixel(bx + 25, by - 18, 3, 7, "#ea9c62");
+        pixel(bx + 12, by - 6, 4, 7, "#f5d180");
+        pixel(bx + 18, by - 6, 4, 5, "#f5d180");
+        pixel(bx + 8, by + 1, 10, 3, "#222e45");
+        pixel(bx + 17, by - 1, 9, 3, "#222e45");
+      }
+
+      function draw() {
+        ctx.save();
+        if (shake > 0) ctx.translate(rand(-shake, shake), rand(-shake, shake));
+        drawBackground();
+        drawSea();
+        drawSurfer(performance.now());
+        for (const p of particles) pixel(p.x, p.y, p.size, p.size, p.color);
+        if (stealth && state === "playing") {
+          pixel(12, 39, 4, 4, alarm > .5 ? "#ff705f" : "#f6d56f");
+          pixel(20, 40, 56, 2, "#173c52");
+          pixel(20, 40, Math.round(56 * clamp(alarm / 1.5, 0, 1)), 2, "#ff705f");
+        }
+        ctx.restore();
+      }
+
+      function frame(now) {
+        const dt = Math.min(.04, (now - lastFrame) / 1000 || 0);
+        lastFrame = now;
+        update(dt, now);
+        draw();
+        requestAnimationFrame(frame);
+      }
+
+      startButton.addEventListener("click", () => {
+        startButton.disabled = true;
+        if (!analyser) connectMic();
+        beginGame();
+      });
+      micButton.addEventListener("click", async () => {
+        if (analyser) {
+          audioStream?.getTracks().forEach(track => track.stop());
+          await audioContext?.close();
+          analyser = audioContext = audioStream = null;
+          micButton.textContent = "◉　连接麦克风";
+          micButton.setAttribute("aria-pressed", "false");
+          showNotice("麦克风已断开，可继续使用键盘或触屏。");
+        } else {
+          await connectMic();
+        }
+      });
+      window.addEventListener("keydown", event => {
+        if (event.code === "Space" && !event.repeat) { event.preventDefault(); thrustHeld = true; }
+        if (event.code === "Enter" && state !== "playing" && !startButton.disabled) startButton.click();
+      });
+      window.addEventListener("keyup", event => { if (event.code === "Space") thrustHeld = false; });
+      window.addEventListener("blur", () => { thrustHeld = false; });
+      canvas.addEventListener("pointerdown", event => { event.preventDefault(); thrustHeld = true; canvas.setPointerCapture(event.pointerId); });
+      canvas.addEventListener("pointerup", () => { thrustHeld = false; });
+      canvas.addEventListener("pointercancel", () => { thrustHeld = false; });
+      window.addEventListener("pagehide", () => {
+        audioStream?.getTracks().forEach(track => track.stop());
+        if (audioContext?.state !== "closed") audioContext?.close();
+      });
+
+      requestAnimationFrame(now => { lastFrame = now; requestAnimationFrame(frame); });
+    })();
+  </script>
+</body>
+</html>
